@@ -1,0 +1,4 @@
+Package Version
+------- -------
+pip     24.0
+pygame  2.6.1
