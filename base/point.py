@@ -3,7 +3,7 @@ from enum import Enum, unique
 
 @unique
 class PointType(Enum):
-    """Tipos de puntos en el juego."""
+    """Type of the points on the game map."""
 
     EMPTY = 0
     WALL = 1
@@ -21,7 +21,7 @@ class PointType(Enum):
 
 
 class Point:
-    """Punto en el juego. El punto almacena solosamente el tipo de punto ya que la posicion se especifica en otra clase."""
+    """Point on the game map."""
 
     def __init__(self):
         self._type = PointType.EMPTY
@@ -31,12 +31,5 @@ class Point:
         return self._type
 
     @type.setter
-    def type(self, value):
-        if not isinstance(value, PointType):
-            raise ValueError("El tipo debe ser una instancia de PointType")
-        self._type = value
-
-    def __str__(self):
-        return f"{self._type.name}"
-
-    __repr__ = __str__
+    def type(self, val):
+        self._type = val

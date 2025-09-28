@@ -1,20 +1,23 @@
+import random
 from collections import deque
-from random import choice, randrange
 
 from base.direc import Direc
-from base.map import Map
 from base.point import PointType
 from base.pos import Pos
 
 
 class Snake:
+    """Snake of the game."""
+
     def __init__(self, game_map, init_direc=None, init_bodies=None, init_types=None):
-        """Inicializa el objeto Snake.
+        """Initialize a Snake object.
+
         Args:
-            game_map (Map): El objeto Map donde se encuentra la serpiente.
-            init_direc (str): La dirección inicial de la serpiente ('UP', 'DOWN', 'LEFT', 'RIGHT').
-            init_bodies (list): Una lista de tuplas con las posiciones iniciales del cuerpo de la serpiente.
-            init_types (list): Una lista de tipos que representan las posiciones del cuerpo de la serpiente.
+            game_map (base.map.Map): The map that the snake moves on.
+            init_direc (base.direc.Direc): Initial direction.
+            init_bodies (list of base.pos.Pos): Initial snake bodies positions.
+            init_types (list of base.point.PointType): Types of each position in init_bodies.
+
         """
         self._map = game_map
         self._init_direc = init_direc
@@ -23,24 +26,16 @@ class Snake:
         self.reset(False)
 
     def reset(self, reset_map=True):
-        """Reinicia la serpiente a su estado inicial en el juego. Si no se ha proporcionado la dirección inicial,
-        posicion del cuerpo o tipos de la serpiente, estos se asignarán de manera aleatoria, con el tamaño de la
-        serpiente de 2 segmentos.
-        Por defecto, también se reinicia el estado del mapa. Puede modificar el parámetro reset_map para evitarlo."""
+        rand_init = False
+        if self._init_direc is None:  # Randomly initialize
+            rand_init = True
+            head_row = random.randrange(2, self._map.num_rows - 2)
+            head_col = random.randrange(2, self._map.num_cols - 2)
+            head = Pos(head_row, head_col)
 
-        # Si no se proporcionan los valores iniciales, se asignan aleatoriamente
-        randInit = False  # Indica si la función se inicio sin valores
-        if self._init_bodies is None or self._init_types is None:
-            randInit = True
-            head = Pos(
-                [randrange(1, self._map.columns - 2), randrange(1, self._map.rows - 2)]
+            self._init_direc = random.choice(
+                [Direc.LEFT, Direc.UP, Direc.RIGHT, Direc.DOWN]
             )
-
-            if self._init_direc is None:
-                self._init_direc = choice(
-                    [Direc.UP, Direc.DOWN, Direc.LEFT, Direc.RIGHT]
-                )
-
             self._init_bodies = [head, head.adj(Direc.opposite(self._init_direc))]
 
             self._init_types = []
@@ -57,27 +52,24 @@ class Snake:
             elif self._init_direc == Direc.UP or self._init_direc == Direc.DOWN:
                 self._init_types.append(PointType.BODY_VER)
 
-        # Asignación de los valores iniciales
+        self._steps = 0
         self._dead = False
         self._direc = self._init_direc
         self._direc_next = Direc.NONE
         self._bodies = deque(self._init_bodies)
+
         if reset_map:
             self._map.reset()
-            self._map.create_food(Pos(7, 13))
         for i, pos in enumerate(self._init_bodies):
             self._map.point(pos).type = self._init_types[i]
 
-        # Si la función se inició sin valores, se limpian los valores iniciales para la próxima vez
-        if randInit:
-            self._init_direc = None
-            self._init_bodies = None
-            self._init_types = None
+        if rand_init:
+            self._init_direc = self._init_bodies = self._init_types = None
 
     def copy(self):
-        """Crea una copia de la serpiente y del mapa."""
-        m_copy = self.game_map.copy()
+        m_copy = self._map.copy()
         s_copy = Snake(m_copy, Direc.NONE, [], [])
+        s_copy._steps = self._steps
         s_copy._dead = self._dead
         s_copy._direc = self._direc
         s_copy._direc_next = self._direc_next
@@ -89,14 +81,16 @@ class Snake:
         return self._map
 
     @property
+    def steps(self):
+        return self._steps
+
+    @property
     def dead(self):
         return self._dead
 
     @dead.setter
-    def dead(self, value):
-        if not isinstance(value, bool):
-            raise ValueError("El valor de dead debe ser un booleano")
-        self._dead = value
+    def dead(self, val):
+        self._dead = val
 
     @property
     def direc(self):
@@ -107,14 +101,12 @@ class Snake:
         return self._direc_next
 
     @direc_next.setter
-    def direc_next(self, value):
-        if not isinstance(value, Direc):
-            raise ValueError("La dirección debe ser una instancia de Direc")
-        self._direc_next = value
+    def direc_next(self, val):
+        self._direc_next = val
 
     @property
     def bodies(self):
-        return list(self._bodies)
+        return self._bodies
 
     def len(self):
         return len(self._bodies)
@@ -129,10 +121,44 @@ class Snake:
             return None
         return self._bodies[-1]
 
-    def _new_types(self):
-        """Decide que tipo de celda debe tener la cabeza y el cierpo de la serpiente al moverse."""
-        old_head_type, new_head_type = None, None
+    def move_path(self, path):
+        for p in path:
+            self.move(p)
 
+    def move(self, new_direc=None):
+        if new_direc is not None:
+            self._direc_next = new_direc
+
+        if (
+            self._dead
+            or self._direc_next == Direc.NONE
+            or self._map.is_full()
+            or self._direc_next == Direc.opposite(self._direc)
+        ):
+            return
+
+        old_head_type, new_head_type = self._new_types()
+        self._map.point(self.head()).type = old_head_type
+        new_head = self.head().adj(self._direc_next)
+        self._bodies.appendleft(new_head)
+
+        if not self._map.is_safe(new_head):
+            self._dead = True
+        if self._map.point(new_head).type == PointType.FOOD:
+            self._map.rm_food()
+        else:
+            self._rm_tail()
+
+        self._map.point(new_head).type = new_head_type
+        self._direc = self._direc_next
+        self._steps += 1
+
+    def _rm_tail(self):
+        self._map.point(self.tail()).type = PointType.EMPTY
+        self._bodies.pop()
+
+    def _new_types(self):
+        old_head_type, new_head_type = None, None
         # new_head_type
         if self._direc_next == Direc.LEFT:
             new_head_type = PointType.HEAD_L
@@ -142,7 +168,6 @@ class Snake:
             new_head_type = PointType.HEAD_R
         elif self._direc_next == Direc.DOWN:
             new_head_type = PointType.HEAD_D
-
         # old_head_type
         if (self._direc == Direc.LEFT and self._direc_next == Direc.LEFT) or (
             self._direc == Direc.RIGHT and self._direc_next == Direc.RIGHT
@@ -169,35 +194,3 @@ class Snake:
         ):
             old_head_type = PointType.BODY_DL
         return old_head_type, new_head_type
-
-    def _rm_tail(self):
-        self._map.point(self.tail()).type = PointType.EMPTY
-        self._bodies.pop()
-
-    def move(self, new_direc=None):
-        if new_direc is not None:
-            self._direc_next = new_direc
-
-        if (
-            self._dead
-            or self._direc_next == Direc.NONE
-            or self._direc_next == Direc.opposite(self._direc)
-        ):
-            return
-
-        old_head_type, new_head_type = self._new_types()
-        self._map.point(self.head()).type = old_head_type
-        new_head = self.head().adj(self._direc_next)
-        self._bodies.appendleft(new_head)
-
-        if not self._map.is_safe(new_head):
-            self._dead = True
-        if self._map.point(new_head).type == PointType.FOOD:
-            self._map.rm_food()
-        else:
-            self._rm_tail()
-
-    def move_path(self, path):
-        for p in path:
-            self.move(p)
-

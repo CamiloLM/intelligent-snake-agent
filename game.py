@@ -2,16 +2,9 @@ import sys
 import pygame
 from pygame.locals import K_ESCAPE, KEYDOWN, QUIT, K_r
 from base import Direc, Map, PointType, Pos, Snake
+from solver import GreedySolver
 
 from config import *
-
-
-class RightSolver:
-    def __init__(self, snake):
-        self.snake = snake
-
-    def next_direc(self):
-        return Direc.RIGHT
 
 
 def draw_board(screen, game_map, cell_w, cell_h):
@@ -57,11 +50,11 @@ def main():
 
     game_map.create_food(Pos(7, 13))
     
-    solver = RightSolver(snake)
+    solver = GreedySolver(snake)
 
     cell_w = cell_h = CELL_PIX
     screen = pygame.display.set_mode((MAP_COLS * cell_w, MAP_ROWS * cell_h))
-    pygame.display.set_caption("Snake - Pygame (solver: always RIGHT)")
+    pygame.display.set_caption("Snake - Pygame")
 
     clock, font = pygame.time.Clock(), pygame.font.SysFont("Arial", 20)
     prev_len, score, running, paused, game_over = snake.len(), 0, True, False, False

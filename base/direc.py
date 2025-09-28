@@ -3,27 +3,20 @@ from enum import Enum, unique
 
 @unique
 class Direc(Enum):
-    """Enum con las direcciones posibles."""
-
-    UP = 0
-    DOWN = 1
-    LEFT = 2
+    NONE = 0
+    LEFT = 1
+    UP = 2
     RIGHT = 3
-    NONE = 4
+    DOWN = 4
 
     @staticmethod
-    def opposite(direction):
-        opposites = {
-            Direc.UP: Direc.DOWN,
-            Direc.DOWN: Direc.UP,
-            Direc.LEFT: Direc.RIGHT,
-            Direc.RIGHT: Direc.LEFT,
-            Direc.NONE: Direc.NONE,
-        }
-        return opposites.get(direction, Direc.NONE)
-
-
-if __name__ == "__main__":
-    # Example usage
-    print(Direc.UP)  # Output: Direc.UP
-    print(Direc.opposite(Direc.LEFT))  # Output: Direc.RIGHT:w
+    def opposite(direc):
+        if direc == Direc.LEFT:
+            return Direc.RIGHT
+        if direc == Direc.RIGHT:
+            return Direc.LEFT
+        if direc == Direc.UP:
+            return Direc.DOWN
+        if direc == Direc.DOWN:
+            return Direc.UP
+        return Direc.NONE

@@ -2,32 +2,18 @@ from base.direc import Direc
 
 
 class Pos:
-    """Clase que representa una posición en un plano 2D con coordenadas cartesianas.
-    El origen (0, 0) está en la esquina superior izquierda.
+    """Integer coordinate in 2D plane.
+
+    The origin of the coordinate system is at the top-left corner,
+    with x-axis extends downward and y-axis extends rightward.
     """
 
     def __init__(self, x=0, y=0):
         self._x = x
         self._y = y
 
-    @property
-    def x(self):
-        return self._x
-
-    @x.setter
-    def x(self, val):
-        self._x = val
-
-    @property
-    def y(self):
-        return self._y
-
-    @y.setter
-    def y(self, val):
-        self._y = val
-
     def __str__(self):
-        return f"Posición ({self._x}, {self._y})"
+        return f"Pos({self._x},{self._y})"
 
     __repr__ = __str__
 
@@ -55,12 +41,9 @@ class Pos:
     def __hash__(self):
         return hash((self.x, self.y))
 
-
     @staticmethod
-    def manhattan_dist(pos1, pos2):
-        "Distancia Manhattan entre dos posiciones"
-        return abs(pos1.x - pos2.x) + abs(pos1.y - pos2.y)
-
+    def manhattan_dist(p1, p2):
+        return abs(p1.x - p2.x) + abs(p1.y - p2.y)
 
     def direc_to(self, adj_pos):
         """Return the direction of an adjacent Pos relative to self."""
@@ -99,16 +82,18 @@ class Pos:
                 adjs.append(self.adj(direc))
         return adjs
 
+    @property
+    def x(self):
+        return self._x
 
+    @x.setter
+    def x(self, val):
+        self._x = val
 
-if __name__ == "__main__":
-    square = Pos(1, 3)
-    circle = Pos(2, 3)
-    triangle = Pos(1, 2)
-    star = Pos(0, 3)
-    ruby = Pos(1, 4)
+    @property
+    def y(self):
+        return self._y
 
-    print(square.direc_to(circle))
-    print(square.direc_to(triangle))
-    print(square.direc_to(star))
-    print(square.direc_to(ruby))
+    @y.setter
+    def y(self, val):
+        self._y = val
