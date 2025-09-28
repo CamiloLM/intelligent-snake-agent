@@ -37,7 +37,6 @@ class Point:
         self._type = value
 
     def __str__(self):
-        return f"{self._type}"
+        return f"{self._type.name}"
 
     __repr__ = __str__
-

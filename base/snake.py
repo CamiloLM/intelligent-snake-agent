@@ -64,6 +64,7 @@ class Snake:
         self._bodies = deque(self._init_bodies)
         if reset_map:
             self._map.reset()
+            self._map.create_food(Pos(7, 13))
         for i, pos in enumerate(self._init_bodies):
             self._map.point(pos).type = self._init_types[i]
 
@@ -199,16 +200,4 @@ class Snake:
     def move_path(self, path):
         for p in path:
             self.move(p)
-
-
-if __name__ == "__main__":
-    game_map = Map(15, 15)
-    init_bodies = [Pos(7, 4), Pos(7, 3), Pos(7, 2), Pos(7, 1)]
-    init_types = [PointType.HEAD_D]
-    for i in range(1, len(init_bodies)):
-        init_types.append(PointType.BODY_HOR)
-    init_direc = Direc.RIGHT  # La dirección inicial no puede ser NONE
-
-    snake = Snake(game_map, init_direc, init_bodies, init_types)
-    snake.move(Direc.DOWN)
 

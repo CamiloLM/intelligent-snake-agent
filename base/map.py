@@ -5,7 +5,9 @@ from base.pos import Pos
 
 
 class Map:
-    """Mapa 2D del juego que almacena el tipo de cada punto. Las posiciones se consultan con la clase Pos."""
+    """Mapa 2D del juego que almacena el tipo de cada punto. Las posiciones se consultan con la clase Pos.
+    La poscion en x corresponde a las filas y la posicion en y a las columnas.
+    """
 
     def __init__(self, num_rows, num_cols):
         if not isinstance(num_rows, int) or not isinstance(num_cols, int):
@@ -81,9 +83,9 @@ class Map:
         """Verifica si una posición está dentro de los límites del mapa."""
         return (
             pos.x > 0
-            and pos.x < self._num_cols - 1
+            and pos.x < self._num_rows - 1
             and pos.y > 0
-            and pos.y < self._num_rows - 1
+            and pos.y < self._num_cols - 1
         )
 
     def is_empty(self, pos):
