@@ -3,6 +3,7 @@ from enum import Enum, unique
 
 @unique
 class Direc(Enum):
+    """Enum con las direcciones posibles."""
     NONE = 0
     LEFT = 1
     UP = 2

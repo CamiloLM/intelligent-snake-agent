@@ -3,7 +3,7 @@ from enum import Enum, unique
 
 @unique
 class PointType(Enum):
-    """Type of the points on the game map."""
+    """Tipos de puntos en el juego."""
 
     EMPTY = 0
     WALL = 1
@@ -21,7 +21,7 @@ class PointType(Enum):
 
 
 class Point:
-    """Point on the game map."""
+    """Punto en el juego. Se almacena solamente el tipo de punto ya que la posicion la clase pos"""
 
     def __init__(self):
         self._type = PointType.EMPTY

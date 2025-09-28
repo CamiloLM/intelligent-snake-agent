@@ -7,6 +7,7 @@ from solver.base import BaseSolver
 
 
 class _TableCell:
+    """Clase auxiliar para almacenar información durante la búsqueda de rutas."""
     def __init__(self):
         self.reset()
 
@@ -26,6 +27,9 @@ class _TableCell:
 
 
 class PathSolver(BaseSolver):
+    """Calcula todas las rutas que puede tomar la serpiente para encontrar la
+    distancia más corta a la comida BFS y la distancia más larga a la cola"""
+
     def __init__(self, snake):
         super().__init__(snake)
         self._table = [
@@ -50,17 +54,13 @@ class PathSolver(BaseSolver):
             path = self.shortest_path_to(des)
         elif path_type == "longest":
             path = self.longest_path_to(des)
-        self.map.point(des).type = ori_type  # Restore origin type
+        self.map.point(des).type = ori_type
         return path
 
     def shortest_path_to(self, des):
-        """Find the shortest path from the snake's head to the destination.
-
-        Args:
-            des (snake.base.pos.Pos): The destination position on the map.
-
-        Returns:
-            A collections.deque of snake.base.direc.Direc indicating the path directions.
+        """Encuentra el camino más corto desde la cabeza de la serpiente hasta el destino usando BFS.
+        des: La posición de destino en el mapa.
+        Retorna: Una cola con las direcciones que debe tomar la serpiente.
         """
         self._reset_table()
 
@@ -74,7 +74,8 @@ class PathSolver(BaseSolver):
             if cur == des:
                 return self._build_path(head, des)
 
-            # Arrange the order of traverse to make the path as straight as possible
+            # Reajustar el orden de las posiciones adyacentes para favorecer la
+            # el movimiento en la misma dirección ya que es más rapido
             if cur == head:
                 first_direc = self.snake.direc
             else:
@@ -98,13 +99,11 @@ class PathSolver(BaseSolver):
         return deque()
 
     def longest_path_to(self, des):
-        """Find the longest path from the snake's head to the destination.
-
-        Args:
-            des (snake.base.pos.Pos): The destination position on the map.
-
-        Returns:
-            A collections.deque of snake.base.direc.Direc indicating the path directions.
+        """Calcula el camino más largo hasta la posición del destino.
+        Calcular un ciclo en un grafo es un problema NP-hard, por lo que se utiliza
+        una heurística para extender el camino más corto encontrado previamente.
+        des: La posición de destino en el mapa.
+        Retorna: Una cola con las direcciones que debe tomar la serpiente.
         """
         path = self.shortest_path_to(des)
         if not path:
@@ -113,13 +112,14 @@ class PathSolver(BaseSolver):
         self._reset_table()
         cur = head = self.snake.head()
 
-        # Set all positions on the shortest path to 'visited'
+        # Se marcan las posiciones del camino corto como visitadas
         self._table[cur.x][cur.y].visit = True
         for direc in path:
             cur = cur.adj(direc)
             self._table[cur.x][cur.y].visit = True
 
-        # Extend the path between each pair of the positions
+        # Se recorre la serpiente y por cada pareja de posiciones adyacentes
+        # se intenta extender el camino con un movimiento en perpendicular
         idx, cur = 0, head
         while True:
             cur_direc = path[idx]
@@ -134,6 +134,7 @@ class PathSolver(BaseSolver):
             for test_direc in tests:
                 cur_test = cur.adj(test_direc)
                 nxt_test = nxt.adj(test_direc)
+                # Verifica si se puede añador un zig-zag
                 if self._is_valid(cur_test) and self._is_valid(nxt_test):
                     self._table[cur_test.x][cur_test.y].visit = True
                     self._table[nxt_test.x][nxt_test.y].visit = True
@@ -142,6 +143,7 @@ class PathSolver(BaseSolver):
                     extended = True
                     break
 
+            # Si no se pudo extender, avanza al siguiente par de posiciones
             if not extended:
                 cur = nxt
                 idx += 1
@@ -158,7 +160,7 @@ class PathSolver(BaseSolver):
     def _build_path(self, src, des):
         path = deque()
         tmp = des
-        while tmp != src:
+        while tmp != src:  # Restore origin type
             parent = self._table[tmp.x][tmp.y].parent
             path.appendleft(parent.direc_to(tmp))
             tmp = parent

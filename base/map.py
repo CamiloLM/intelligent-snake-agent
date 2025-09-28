@@ -5,7 +5,9 @@ from base.pos import Pos
 
 
 class Map:
-    """2D game map."""
+    """Mapa 2D del juego que almacena el tipo de cada punto. Las posiciones se consultan con la clase Pos.
+    La poscion en x corresponde a las filas y la posicion en y a las columnas.
+    """
 
     def __init__(self, num_rows, num_cols):
         """Initialize a Map object."""
@@ -21,6 +23,7 @@ class Map:
         self.reset()
 
     def reset(self):
+        """Reinicia el mapa a su estado inicial."""
         self._food = None
         for i in range(self._num_rows):
             for j in range(self._num_cols):
@@ -35,6 +38,7 @@ class Map:
                     self._content[i][j].type = PointType.EMPTY
 
     def copy(self):
+        """Crea una copia del mapa."""
         m_copy = Map(self._num_rows, self._num_cols)
         for i in range(self._num_rows):
             for j in range(self._num_cols):
@@ -58,21 +62,12 @@ class Map:
         return self._food
 
     def point(self, pos):
-        """Return a point on the map.
-
-        DO NOT directly modify the point type to PointType.FOOD and vice versa.
-        Use {add|rm}_food() methods instead.
-
-        Args:
-            pos (base.pos.Pos): The position of the point to be fetched
-
-        Returns:
-            snake.point.Point: The point at the given position.
-
-        """
+        """Devuelve un punto del mapa en la posición dada.
+        Pos tiene que ser una instancia de la clase Pos."""
         return self._content[pos.x][pos.y]
 
     def is_inside(self, pos):
+        """Verifica si una posición está dentro de los límites del mapa."""
         return (
             pos.x > 0
             and pos.x < self.num_rows - 1
@@ -81,16 +76,18 @@ class Map:
         )
 
     def is_empty(self, pos):
+        """Verifica si una posición es vacía."""
         return self.is_inside(pos) and self.point(pos).type == PointType.EMPTY
 
     def is_safe(self, pos):
+        """Verifica si una posición es segura para la serpiente."""
         return self.is_inside(pos) and (
             self.point(pos).type == PointType.EMPTY
             or self.point(pos).type == PointType.FOOD
         )
 
     def is_full(self):
-        """Check if the map is filled with the snake's bodies."""
+        """Verifica si el mapa está lleno del cuerpo de la serpiente."""
         for i in range(1, self.num_rows - 1):
             for j in range(1, self.num_cols - 1):
                 t = self._content[i][j].type
@@ -102,11 +99,13 @@ class Map:
         return self._food is not None
 
     def rm_food(self):
+        """Elimina la comida del mapa."""
         if self.has_food():
             self.point(self._food).type = PointType.EMPTY
             self._food = None
 
     def create_food(self, pos):
+        """Agrega comida en la posición dada."""
         self.point(pos).type = PointType.FOOD
         self._food = pos
         return self._food

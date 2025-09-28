@@ -1,6 +1,6 @@
 import sys
 import pygame
-from pygame.locals import K_ESCAPE, KEYDOWN, QUIT, K_r
+from pygame.locals import K_ESCAPE, KEYDOWN, QUIT, K_r, K_p
 from base import Direc, Map, PointType, Pos, Snake
 from solver import GreedySolver
 
@@ -41,14 +41,20 @@ def main():
     pygame.init()
     game_map = Map(MAP_ROWS + 2, MAP_COLS + 2)
 
-    init_bodies = [Pos(7, 4), Pos(7, 3), Pos(7, 2), Pos(7, 1)]
-    init_types = [PointType.HEAD_D] + [PointType.BODY_HOR] * (len(init_bodies)- 1)
-    
-    init_direc = Direc.RIGHT  # La dirección inicial no puede ser NONE
+    if MAP_ROWS == 15 and MAP_COLS == 17:
 
-    snake = Snake(game_map, init_direc, init_bodies, init_types)
+        init_bodies = [Pos(7, 4), Pos(7, 3), Pos(7, 2), Pos(7, 1)]
+        init_types = [PointType.HEAD_D] + [PointType.BODY_HOR] * (len(init_bodies)- 1)
+        
+        init_direc = Direc.RIGHT  # La dirección inicial no puede ser NONE
 
-    game_map.create_food(Pos(7, 13))
+        snake = Snake(game_map, init_direc, init_bodies, init_types)
+
+        game_map.create_food(Pos(7, 13))
+    else:
+        game_map = Map(MAP_ROWS + 2, MAP_COLS + 2)
+        snake = Snake(game_map)
+        game_map.create_rand_food()
     
     solver = GreedySolver(snake)
 
@@ -63,9 +69,13 @@ def main():
         for ev in pygame.event.get():
             if ev.type == QUIT or (ev.type == KEYDOWN and ev.key == K_ESCAPE):
                 running = False
-            elif ev.type == KEYDOWN and ev.key == K_r and game_over:
+            elif ev.type == KEYDOWN and ev.key == K_r:
                 snake.reset()
+                if MAP_ROWS == 15 and MAP_COLS == 17:
+                    snake.map.create_food(Pos(7, 13))
                 score, prev_len, game_over, paused = 0, snake.len(), False, False
+            elif ev.type == KEYDOWN and ev.key == K_p:
+                paused = not paused
 
         if not paused and not game_over:
             if not game_map.has_food():
@@ -96,6 +106,13 @@ def main():
             screen.blit(large.render(go_text[0], True, (255, 255, 255)), large.render(go_text[0], True, (255, 255, 255)).get_rect(center=((MAP_COLS * cell_w) // 2, y0)))
             screen.blit(small.render(go_text[1], True, (220, 220, 220)), small.render(go_text[1], True, (220, 220, 220)).get_rect(center=((MAP_COLS * cell_w) // 2, y0 + 50)))
             screen.blit(small.render(go_text[2], True, (220, 220, 220)), small.render(go_text[2], True, (220, 220, 220)).get_rect(center=((MAP_COLS * cell_w) // 2, y0 + 85)))
+
+        if paused and not game_over:
+            overlay = pygame.Surface((MAP_COLS * cell_w, MAP_ROWS * cell_h), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 120))
+            screen.blit(overlay, (0, 0))
+            pause_text = pygame.font.SysFont("Arial", 36).render("PAUSA", True, (255, 255, 255))
+            screen.blit(pause_text, pause_text.get_rect(center=(MAP_COLS * cell_w // 2, MAP_ROWS * cell_h // 2)))
 
         pygame.display.flip()
         clock.tick(FPS)

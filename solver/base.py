@@ -1,5 +1,5 @@
 class BaseSolver:
-    """Super class of all the solvers."""
+    """Clase base para los solucionadores de la serpiente."""
 
     def __init__(self, snake):
         self._snake = snake
@@ -19,8 +19,5 @@ class BaseSolver:
         self._map = val.map
 
     def next_direc(self):
-        """Generate the next direction of the snake."""
+        """Genera la próxima dirección para la serpiente."""
         return NotImplemented
-
-    def close(self):
-        """Release resources."""

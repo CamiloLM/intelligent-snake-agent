@@ -2,10 +2,8 @@ from base.direc import Direc
 
 
 class Pos:
-    """Integer coordinate in 2D plane.
-
-    The origin of the coordinate system is at the top-left corner,
-    with x-axis extends downward and y-axis extends rightward.
+    """Clase que representa una posición en un plano 2D con coordenadas cartesianas.
+    El origen (0, 0) está en la esquina superior izquierda.
     """
 
     def __init__(self, x=0, y=0):
@@ -43,10 +41,11 @@ class Pos:
 
     @staticmethod
     def manhattan_dist(p1, p2):
+        """Distancia Manhattan entre dos posiciones"""
         return abs(p1.x - p2.x) + abs(p1.y - p2.y)
 
     def direc_to(self, adj_pos):
-        """Return the direction of an adjacent Pos relative to self."""
+        """Regresa la posición en la que se encuentra un nodo adjacente."""
         if self._x == adj_pos.x:
             diff = self._y - adj_pos.y
             if diff == 1:
@@ -62,7 +61,7 @@ class Pos:
         return Direc.NONE
 
     def adj(self, direc):
-        """Return the adjacent Pos in a given direction."""
+        """Regresa la posición adyacente según la dirección dada."""
         if direc == Direc.LEFT:
             return Pos(self._x, self._y - 1)
         elif direc == Direc.RIGHT:
@@ -75,7 +74,7 @@ class Pos:
             return None
 
     def all_adj(self):
-        """Return a list of all the adjacent Pos."""
+        """Regresa una lista con todas las posiciones adyacentes."""
         adjs = []
         for direc in Direc:
             if direc != Direc.NONE:
