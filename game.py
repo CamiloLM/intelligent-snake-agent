@@ -4,8 +4,19 @@ import pygame
 from pygame.locals import K_ESCAPE, KEYDOWN, QUIT, K_p, K_r
 
 from base import Direc, Map, PointType, Pos, Snake
-from config import *
 from solver import GreedySolver
+
+MAP_ROWS = 15  # 15
+MAP_COLS = 17  # 17
+CELL_PIX = 40
+FPS = 10
+
+COLOR_BODY_BLUE = (0, 102, 204)
+COLOR_HEAD_WHITE = (255, 255, 255)
+COLOR_APPLE_RED = (200, 0, 0)
+COLOR_GREEN_LIGHT = (198, 239, 206)
+COLOR_GREEN_DARK = (183, 225, 193)
+COLOR_TEXT = (250, 250, 250)
 
 
 def draw_board(screen, game_map, cell_w, cell_h):
