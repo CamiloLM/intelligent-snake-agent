@@ -87,6 +87,8 @@ int main() {
 
         detected_move = determine_move(&last_state, body_candidates, &last_head_coord);
         //printf("Detected  move 0x%02X.\n", detected_move);
+        heap_free(body_candidates);
+
         if (detected_move){
             calculate_next_state_in_place(detected_move, &last_state);
             last_state.score = read_current_score;

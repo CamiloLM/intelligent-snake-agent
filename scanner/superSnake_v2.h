@@ -11,6 +11,7 @@
 
 #define ROWS 15
 #define COLS 17
+
 /*==========================================================================  
  *  Game state structure and tools 
  *  ========================================================================*/
@@ -51,6 +52,10 @@ struct GameState {
     struct Node *snake_body_rear;  // head of queue rear of snake
     struct Node *snake_body_front;  // tail of queue front of snake
 };
+
+int coords_are_equal(struct Coord *coord_a, struct Coord *coord_b){
+    return (coord_a->row == coord_b->row) && (coord_a->col == coord_b->col);
+}
 
 void print_next_move(const struct GameState *state){
     printf("bitmask: 0x%02x\n", state->next_move);
@@ -275,10 +280,6 @@ int coord_in_board(struct Coord *coord){
     || coord->col >= 0 || coord->col < 17;
 }
 
-int coords_are_equal(struct Coord *coord_a, struct Coord *coord_b){
-    return (coord_a->row == coord_b->row) && (coord_a->col == coord_b->col);
-}
-
 int val_is_empty_or_apple(int val){
     return val == 0 || val == 3;
 }
@@ -382,13 +383,13 @@ void calculate_next_state_in_place(unsigned int next_move, struct GameState *sta
     //read snake_rear_coord
     struct Node *cur_snake_body_rear = state->snake_body_rear;
     //mark rear coord as empty on new board
-    state->board[cur_snake_body_rear->pos.row][cur_snake_body_rear->pos.col] = 0;
+    //state->board[cur_snake_body_rear->pos.row][cur_snake_body_rear->pos.col] = 0;
     //remove rear from queue
     state->snake_body_rear = state->snake_body_rear->next;
     free(cur_snake_body_rear);
 
-    //mark front coord as body
-    state->board[state->snake_body_front->pos.row][state->snake_body_front->pos.col] = 1;
+    //mark front coord as body board
+    //state->board[state->snake_body_front->pos.row][state->snake_body_front->pos.col] = 1;
     //calc neighbor and mark as head, update head and add new head to queue
     
     struct Coord next_coord;
@@ -409,13 +410,24 @@ void calculate_next_state_in_place(unsigned int next_move, struct GameState *sta
             next_coord = calculate_west_neighbor(&(state->snake_body_front->pos));
             break;
     }
-    //mark head in board!
-    state->board[next_coord.row][next_coord.col] = HEAD;
     //iff head coord is apple, increment score, new apple coord -1,-1
-    if (state->board[next_coord.row][next_coord.col] == APPLE){
-        state->score += 1;
-        state->apple_coord.row = -1;
-        state->apple_coord.col = -1;
+    //if (state->board[next_coord.row][next_coord.col] == APPLE){
+    if (coords_are_equal(&next_coord, &(state->apple_coord))){
+        //state->score += 1;
+        //state->apple_coord.row = -1;
+        //state->apple_coord.col = -1;
+        //printf("DEBUG: PLUS ONE NODE!");
+        struct Node *new_node = malloc(sizeof(struct Node));
+        if (!new_node) {
+            fprintf(stderr, "malloc failed for snake node\n");
+            return; // caller must handle partial snake if this happens
+        }
+
+        new_node->pos.row = state->snake_body_rear->pos.row;
+        new_node->pos.col = state->snake_body_rear->pos.col;
+        new_node->next = state->snake_body_rear;
+        
+        state->snake_body_rear = new_node;
     }
     
     struct Node *new_node = malloc(sizeof(struct Node));
@@ -431,8 +443,26 @@ void calculate_next_state_in_place(unsigned int next_move, struct GameState *sta
     state->snake_body_front->next = new_node;
     state->snake_body_front = new_node;
 
+    for (int r = 0; r < ROWS; ++r) {
+        for (int c = 0; c < COLS; ++c) {
+            state->board[r][c] = EMPTY;
+        }
+    }
+
+    struct Node *current_node = state->snake_body_rear;
+
+    while (current_node){
+        state->board[current_node->pos.row][current_node->pos.col] = SNAKE;
+        current_node = current_node->next;
+    }
+    //state->board[state->snake_body_front->pos.row][state->snake_body_front->pos.col] = HEAD;
+    //mark head in board!
+    state->board[next_coord.row][next_coord.col] = HEAD;
+
+    state->board[state->apple_coord.row][state->apple_coord.col] = APPLE;
+
     //state->next_move = calculate_possible_moves(state);
-    state->next_move = 0;
+    state->next_move = next_move;
 }
 
 struct Coord build_logic_blue_ratios(struct GameState *state, double (*ratios)[17]){
@@ -495,6 +525,7 @@ unsigned int determine_move(struct GameState *state, MaxHeap *h, struct Coord *l
 
     unsigned int detected_move = 0;
     unsigned int mask = 15;
+    unsigned int possible_moves = calculate_possible_moves(state); 
 
     struct Coord north_neighbor = calculate_north_neighbor(&(state->snake_body_front->pos));
     struct Coord south_neighbor = calculate_south_neighbor(&(state->snake_body_front->pos));
@@ -509,22 +540,26 @@ unsigned int determine_move(struct GameState *state, MaxHeap *h, struct Coord *l
             if (coords_are_equal(&cur_hnode.coord, &state->snake_body_rear->pos)){
                 mask = 0;
             }
-            if (coords_are_equal(&north_neighbor, &cur_hnode.coord) &&\
+            if ((possible_moves & DIR_NORTH) \
+                && coords_are_equal(&north_neighbor, &cur_hnode.coord) &&\
                 !(coords_are_equal(&north_neighbor, last_head_coord))){
                 detected_move = DIR_NORTH;
                 break;
                 }
-            if (coords_are_equal(&south_neighbor, &cur_hnode.coord) &&\
+            if ((possible_moves & DIR_SOUTH)\
+                && coords_are_equal(&south_neighbor, &cur_hnode.coord) &&\
                 !(coords_are_equal(&south_neighbor, last_head_coord))){
                 detected_move = DIR_SOUTH;
                 break;
                 }
-            if (coords_are_equal(&east_neighbor, &cur_hnode.coord) &&\
+            if ((possible_moves & DIR_EAST)\
+                && coords_are_equal(&east_neighbor, &cur_hnode.coord) &&\
                 !(coords_are_equal(&east_neighbor, last_head_coord))){
                 detected_move = DIR_EAST;
                 break;
                 }
-            if (coords_are_equal(&west_neighbor, &cur_hnode.coord) &&\
+            if ((possible_moves & DIR_WEST)\
+                && coords_are_equal(&west_neighbor, &cur_hnode.coord) &&\
                 !(coords_are_equal(&west_neighbor, last_head_coord))){
                 detected_move = DIR_WEST;
                 break;
