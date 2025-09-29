@@ -1,177 +1,148 @@
 import time
-from typing import List
-
+from base import Snake, Pos, Direc, PointType, Map
+from solver import GreedySolver
+from actuator import Actuator
+from scanner import Scanner
 import pyautogui
 
-# NOTA: Se asume que las clases Actuator, Map, PointType, Pos, Snake
-# y la clase GreedySolver existen y están disponibles.
-from actuator import Actuator
-from base import Map, PointType, Pos, Snake
-from scanner import Scanner
-from solver.greedy import GreedySolver
-
-
-class Main:
-    """
-    Agente principal:
-    - Scanner: sensor
-    - Snake (instancia local): estado en memoria (se actualiza desde scanner)
-    - GreedySolver: decide siguiente Direc
-    - Actuator: ejecuta la acción en el ambiente con pyautogui
-    """
-
-    def __init__(
-        self,
-        region: tuple,
-        rows: int = 15,
-        cols: int = 17,
-        cell_size: int = 35,
-        fps: int = 120,
-        # 'debounce_frames' se ignora al inicializar Scanner, pero se mantiene aquí
-        # por si se usa en otras partes del sistema principal.
-        debounce_frames: int = 3,
-        focus_on_start: bool = True,
-    ):
-        # 1. Ajuste de Inicialización del Scanner:
-        # Se eliminan los argumentos 'rows', 'cols', y 'debounce_frames'
-        # que no existen en el __init__ de tu clase Scanner.
-        self.scanner = Scanner(
-            region=region,
-            cell_size=cell_size,
-        )
-
-        # crear mapa y snake locales (para que GreedySolver tenga la misma API que en pygame)
-        self.map = Map(rows + 2, cols + 2)  # bordes incluido
-        self.snake = Snake(self.map)
-        # solver espera un objeto Snake (igual que en tu pygame)
-        self.solver = GreedySolver(self.snake)
+class Agent:
+    """Agente Inteligente que juega Snake de Google automáticamente."""
+    def __init__(self):
+        """
+        scanner: instancia de Scanner para leer el estado del juego.
+        actuator: instancia de Actuator para enviar teclas.
+        map: instancia de Map que representa el tablero.
+        snake: instancia de Snake que representa la serpiente de forma local.
+        solver: instancia del algorimo para decidir la próxima acción.
+        """
+        self.scanner = Scanner()
         self.actuator = Actuator()
-        self.rows = rows
-        self.cols = cols
-        self.fps = fps
-        self.focus_on_start = focus_on_start
+        self.map = Map(17, 19)
+        self.last_direc = Direc.RIGHT
+        self.solver = GreedySolver(self.snake)
+        self.map.create_food(Pos(7, 13))
 
-    def _update_snake_from_grid(self, grid: List[List[PointType]]):
+        init_body = [Pos(8, 7), Pos(8, 6), Pos(8, 5)]
+        init_types = [PointType.HEAD_R, PointType.BODY_HOR, PointType.BODY_HOR]
+        self.snake = Snake(self.map, Direc.RIGHT, init_body, init_types)
+
+    def run(self):
+        """Bucle principal"""
+        while True:
+            # 1. Leer estado desde pantalla
+            snake_body, food_position = self.scanner.capture()
+
+            # 2. Actualizar snake local
+            self._update_snake(snake_body, food_position)
+
+            # 3. Calcular dirección
+            direc = self.solver.next_direc()
+            # self.snake.move(direc)  # Opcional: mover la serpiente localmente
+
+            # 4. Mandar acción
+            self.actuator.send(direc)
+            self.last_direc = direc
+
+            # 5. Pausa opcional
+            time.sleep(0.2)
+
+
+    def _update_snake(self, snake_body, food_position):
         """
-        Actualiza self.snake.map con la grilla detectada (grid = rows x cols).
-        El mapa interno tiene bordes (1..rows, 1..cols en la representación de Map),
-        por eso usamos offset +1 al asignar.
+        Actualiza el Snake local con los datos del Scanner.
+        snake_body: deque de Pos (cabeza primero).
+        food_position: Pos
         """
-        for i in range(self.rows):
-            for j in range(self.cols):
-                val = grid[i][j]
-                # Modificado para manejar el caso PointType.NONE que devuelve tu clasificar_color
-                if val == PointType.NONE:
-                    # Asumimos que si no se detecta nada específico, es un espacio vacío.
-                    val = PointType.EMPTY
+        # --- Cabeza ---
+        head = Pos(snake_body[0])
+        direc = self._head_type_from_direc(self.last_direc)
+        new_bodies = [head]
+        new_types = [direc]
+        
+        # --- Cuerpo ---
+        for i in range(1, len(snake_body)):
+            new_bodies.append(Pos(snake_body[i]))
 
-                # Pos toma (row, col) en la API del mapa
-                pos = Pos(i + 1, j + 1)
-                try:
-                    self.map.point(pos).type = val
-                except Exception:
-                    # si la API de Map es distinta, evitamos romper; en debug mostrar info
-                    # (pero no fallamos el bucle)
-                    pass
+        for i in range(1, len(snake_body) - 1):
+            prev = snake_body[i - 1]  # segmento anterior
+            curr = snake_body[i]
+            nxt = snake_body[i + 1]  # segmento siguiente
+            new_types.append(self._body_type(prev, curr, nxt))
 
-        # Opcional: imprimir la grilla detectada para depuración
-        # print(f"\n--- Frame {self.frame} Mapeado ---")
-        # self.scanner.print_grid(grid)
+        # --- Cola ---
+        if len(snake_body) > 1:
+            tail = snake_body[-1]
+            before_tail = snake_body[-2]
+            if before_tail.row == tail.row:
+                t_type = PointType.BODY_HOR
+            else:
+                t_type = PointType.BODY_VER
+            new_types[-1] = t_type
+        
+        # --- Crear la serpiente ---
+        game_map = self.map
+        if direc != Direc.NONE and len(snake_body) > 1 and len(new_bodies) == len(new_types):
+            self.snake = Snake(game_map, direc, new_bodies, new_types)
+        else:
+            self.snake = Snake(game_map)
 
-    def run(self, max_frames: int = None):
-        """
-        Bucle principal (agente externo). Guarda screenshots, actualiza estado,
-        pide acción al solver y la manda con el actuator.
-        - max_frames: opcional para correr solo N frames (útil para pruebas).
-        """
+        # --- Comida ---
+        food = Pos(food_position)
+        if food is not None:
+            if game_map.has_food():
+                game_map.remove_food()
+                if game_map.isempty(food):
+                    game_map.create_food(food_position)
+                else:
+                    raise ValueError("La posición de la comida no es vacía.")
+                    
 
-        # Se asume que en algún momento se cambió el nombre del método en Scanner,
-        # pero para usar tu código original de scanner.py:
-        # 2. Ajuste para usar el método real del Scanner:
-        # Se usa _clear_screenshots() de tu clase Scanner
-        self.scanner._clear_screenshots()
-        print("Limpiando directorio de screenshots...")
+    def _head_type_frm_direc(self, direc):
+        """Devuelve el PointType correcto para la cabeza según la última dirección."""
+        if direc == Direc.LEFT:
+            return PointType.HEAD_L
+        elif direc == Direc.UP:
+            return PointType.HEAD_U
+        elif direc == Direc.RIGHT:
+            return PointType.HEAD_R
+        elif direc == Direc.DOWN:
+            return PointType.HEAD_D
+        return PointType.HEAD_R  # por defecto
 
-        # opcional: llevar foco al juego
-        if self.focus_on_start:
-            print("Cambiando foco a la ventana del juego...")
-            pyautogui.hotkey("alt", "tab")
-            time.sleep(0.6)
+    def _body_type(self, prev: Pos, curr: Pos, nxt: Pos):
+        """Decide el tipo de segmento del cuerpo según posiciones adyacentes."""
+        # Movimiento desde prev -> curr -> nxt
+        dr1, dc1 = curr.row - prev.row, curr.col - prev.col
+        dr2, dc2 = nxt.row - curr.row, nxt.col - curr.col
 
-        prev_action = None
-        frame = 0
+        # recto
+        if dr1 == dr2:  # mismo desplazamiento vertical
+            return PointType.BODY_VER
+        if dc1 == dc2:  # mismo desplazamiento horizontal
+            return PointType.BODY_HOR
 
-        try:
-            while True:
-                # limite opcional
-                if max_frames is not None and frame >= max_frames:
-                    break
+        # esquinas
+        if (dr1, dc1) == (0, 1) and (dr2, dc2) == (1, 0):  # → luego ↓
+            return PointType.BODY_RD
+        if (dr1, dc1) == (0, -1) and (dr2, dc2) == (-1, 0):  # ← luego ↑
+            return PointType.BODY_LU
+        if (dr1, dc1) == (0, 1) and (dr2, dc2) == (-1, 0):  # → luego ↑
+            return PointType.BODY_UR
+        if (dr1, dc1) == (0, -1) and (dr2, dc2) == (1, 0):  # ← luego ↓
+            return PointType.BODY_DL
+        if (dr1, dc1) == (1, 0) and (dr2, dc2) == (0, 1):  # ↓ luego →
+            return PointType.BODY_RD
+        if (dr1, dc1) == (-1, 0) and (dr2, dc2) == (0, -1):  # ↑ luego ←
+            return PointType.BODY_LU
+        if (dr1, dc1) == (-1, 0) and (dr2, dc2) == (0, 1):  # ↑ luego →
+            return PointType.BODY_UR
+        if (dr1, dc1) == (1, 0) and (dr2, dc2) == (0, -1):  # ↓ luego ←
+            return PointType.BODY_DL
 
-                # 1. sensor: capturar tablero
-                board = self.scanner.capture_board()
-
-                # 1.a detectar game over por color (celeste)
-                if self.scanner.is_game_over(board):
-                    print("⚠️ Game Over detectado por Scanner. Terminando.")
-                    break
-
-                # 1.b guardar screenshot (se generan muchos archivos, nombramos por frame)
-                fname = f"frame_{frame:06d}.png"
-                self.scanner.save_screenshot(board, fname)
-
-                # 2. construir grilla y actualizar estado interno
-                # 3. REEMPLAZO: Usamos mapear_grid() en lugar de get_stable_grid_from_board()
-                grid = self.scanner.mapear_grid(board, rows=self.rows, cols=self.cols)
-                self.scanner.print_grid(grid)  # Opcional: imprime la grilla
-                self._update_snake_from_grid(grid)
-
-                # 3. decidir acción con el solver (GreedySolver usa self.snake)
-                try:
-                    action = self.solver.next_direc()
-                except Exception:
-                    # si la firma es distinta a next_direc, intentar next_action()
-                    action = getattr(self.solver, "next_action", lambda: None)()
-
-                print(f"Frame {frame} | Acción: {action}")
-
-                # 4. actuador: solo enviar si cambió (evita spam)
-                if action is not None and action != prev_action:
-                    self.actuator.send(action)
-                    prev_action = action
-
-                # 5. avance temporal
-                frame += 1
-                self.frame = frame  # Para depuración interna
-                time.sleep(1.0 / max(1, self.fps))
-
-        except KeyboardInterrupt:
-            print("Interrumpido por usuario.")
-        finally:
-            print("Run finalizado. Frames procesados:", frame)
-
+        return PointType.BODY_VER  # fallback
 
 if __name__ == "__main__":
-    # Ajusta la REGION a la que uses en tu entorno
-    # (left, top, width, height)
-    # REGION de ejemplo usada en tu archivo scanner.py: (387, 217, 594, 525)
-    # **¡Asegúrate de que estas dimensiones coincidan con tu tablero!**
-    # Si las filas son 15 y columnas 17 con cell_size=35, el tamaño debe ser:
-    # Ancho: 17 * 35 = 595. Alto: 15 * 35 = 525.
-    # El ejemplo (387, 217, 594, 525) es casi correcto para (17x15) * 35.
-    REGION = (387, 217, 595, 525)  # Asumiendo un ancho de 595 para 17*35
-
-    # Crea el agente y corre.
-    # Se usa fps=120, lo cual es muy rápido y puede fallar la detección.
-    # Para empezar, prueba un FPS más bajo (e.g., 20).
-    FPS_DEFAULT = 20  # Recomendado: 20-30 FPS para estabilidad inicial
-
-    agent = Main(
-        region=REGION,
-        rows=15,
-        cols=17,
-        cell_size=35,
-        fps=FPS_DEFAULT,
-        debounce_frames=3,
-    )
-    print(f"Iniciando agente a {FPS_DEFAULT} FPS...")
-    agent.run(max_frames=None)  # None => correr hasta detectar game-over o Ctrl+C
+    agent = Agent()
+    pyautogui.hotkey("alt", "tab")
+    time.sleep(0.3)
+    agent.run()

@@ -2,13 +2,13 @@ import time
 
 import pyautogui
 
-from base.direc import Direc  # ¡Asegúrate de que esta línea esté presente!
+from base.direc import Direc
 
 
 class Actuator:
     """
     Actuador externo: envía teclas al ambiente con pyautogui.
-    Envía la tecla solo si cambia la acción (para evitar spam).
+    Envía la tecla solo si cambia la acción.
     """
 
     def __init__(self, key_delay: float = 0.01):
@@ -30,10 +30,8 @@ class Actuator:
         key = self.keymap.get(direc)
 
         if not key:
-            print(
-                f"ERROR: Dirección no válida '{direc}'. Debe ser un miembro de Direc (Direc.UP, etc.)."
-            )
-            return
+            raise ValueError(f"Dirección no válida '{direc.name}'.")
+            
 
         # Aquí se presiona la tecla de flecha común (ej: 'up', 'down')
         pyautogui.press(key)
@@ -48,23 +46,18 @@ if __name__ == "__main__":
 
     actuator = Actuator()
 
-    # CAMBIO CRÍTICO: Debes usar los objetos Direc.UP, Direc.RIGHT, etc., NO las cadenas.
-    moves = [Direc.UP, Direc.RIGHT, Direc.DOWN, Direc.LEFT]
+    # Patrón de movimiento en cuadrado
+    moves = [Direc.RIGHT, Direc.DOWN, Direc.LEFT, Direc.UP]
 
-    # Tiempo para asegurar que el foco se mueva al juego
-    print("Cambiando el foco a la ventana del juego en 3 segundos...")
     pyautogui.hotkey("alt", "tab")
-    time.sleep(0.6)
-
-    # Bucle para probar el patrón de cuadrado
-    print("Iniciando patrón de cuadrado (UP, RIGHT, DOWN, LEFT)...")
+    time.sleep(0.3)
 
     counter = 0
-    while counter < 5:  # Limitar a 5 ciclos para evitar bucle infinito
+    while counter < 15:
         for move in moves:
             print(f"Enviando: {move}")
             actuator.send(move)
-            time.sleep(0.25)  # Espera 1 segundo para ver el movimiento
+            time.sleep(0.25)
         counter += 1
 
-    print("Patrón de cuadrado finalizado.")
+
