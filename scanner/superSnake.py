@@ -2,7 +2,7 @@ import cv2
 import mss
 import numpy as np
 import time
-import superReadScore
+from . import superReadScore
 import struct
 import os
 

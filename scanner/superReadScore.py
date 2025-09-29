@@ -6,13 +6,13 @@ import os
 
 templates = {}
 for name in range(10):
-    templates[str(name)] = cv2.imread(f"digits/{name}.png", cv2.IMREAD_GRAYSCALE)
-templates["empty"] = cv2.imread("digits/empty.png", cv2.IMREAD_GRAYSCALE)
+    templates[str(name)] = cv2.imread(f"assets/digits/{name}.png", cv2.IMREAD_GRAYSCALE)
+templates["empty"] = cv2.imread("assets/digits/empty.png", cv2.IMREAD_GRAYSCALE)
 
 screen_region = (730, 276, 39, 18)
 
 # ---------- CONFIG ----------
-TEMPLATES_DIR = "digits"
+TEMPLATES_DIR = "assets/digits"
 SCREEN_REGION = (730, 276, 39, 18)  # (left, top, width, height)
 DIGIT_W = 13
 DIGIT_H = 18
