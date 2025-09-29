@@ -158,10 +158,12 @@ class Scanner:
         game_x = int(col)  # col ya está en el rango 0-16 (17 columnas)
         game_y = int(row)  # row ya está en el rango 0-14 (15 filas)
         
+        # Sin ajuste en X (removido el +0.5 que causaba +1 de más)
+        
         # Ajustar por el offset del scoreboard (aproximadamente 1 bloque)
         adjusted_y = max(0, game_y - 1)
         
-        # Agregar +1 en Y para compensar el recorte
+        # Agregar +1 en Y para compensar el recorte (revertido de +2 a +1)
         adjusted_y = adjusted_y + 1
         
         return [game_x, adjusted_y]
