@@ -227,6 +227,17 @@ class Agent:
             else:
                 print(f"❌ No se encontró ruta hacia la comida")
         
+        # Verificar si está cerca del borde y apuntando hacia él
+        if self._is_near_border_and_pointing_towards_it():
+            print(f"⚠️  Cerca del borde y apuntando hacia él, recalculando ruta preventiva...")
+            self.current_path = self.solver._path_solver.shortest_path_to_food()
+            self.path_index = 0
+            
+            if self.current_path:
+                print(f"🛤️  Ruta preventiva calculada: {list(self.current_path)}")
+            else:
+                print(f"❌ No se pudo calcular ruta preventiva")
+        
         # Si tenemos una ruta válida, seguir el siguiente paso
         if self.current_path and self.path_index < len(self.current_path):
             next_direction = self.current_path[self.path_index]
@@ -378,6 +389,48 @@ class Agent:
         
         # Fallback
         return [Direc.UP, Direc.DOWN, Direc.LEFT, Direc.RIGHT]
+    
+    def _is_near_border_and_pointing_towards_it(self):
+        """
+        Verifica si la serpiente está a 3 posiciones o menos de algún borde
+        y está apuntando hacia ese borde.
+        """
+        head_pos = self.snake.head()
+        current_direc = self.snake.direc
+        
+        # Obtener dimensiones del mapa (asumiendo que el mapa es 15x17)
+        map_rows = 15
+        map_cols = 17
+            
+        print(f"🔍 Verificando proximidad al borde: {head_pos}, dirección: {current_direc.name}")
+        
+        # Verificar bordes y dirección
+        near_border = False
+        
+        # Borde superior (row = 1)
+        if head_pos.x <= 3 and current_direc == Direc.UP:
+            print(f"⚠️  Cerca del borde superior: row={head_pos.x} <= 3, apuntando UP")
+            near_border = True
+        
+            # Borde inferior (row = 15)
+        elif head_pos.x >= map_rows - 2 and current_direc == Direc.DOWN:
+            print(f"⚠️  Cerca del borde inferior: row={head_pos.x} >= {map_rows - 2}, apuntando DOWN")
+            near_border = True
+            
+        # Borde izquierdo (col = 1)
+        elif head_pos.y <= 3 and current_direc == Direc.LEFT:
+            print(f"⚠️  Cerca del borde izquierdo: col={head_pos.y} <= 3, apuntando LEFT")
+            near_border = True
+        
+        # Borde derecho (col = 17)
+        elif head_pos.y >= map_cols - 2 and current_direc == Direc.RIGHT:
+            print(f"⚠️  Cerca del borde derecho: col={head_pos.y} >= {map_cols - 2}, apuntando RIGHT")
+            near_border = True
+        
+        if near_border:
+            print(f"⚠️  DETECTADO: Cerca del borde y apuntando hacia él!")
+        
+        return near_border
 
 if __name__ == "__main__":
     # Crear agente

@@ -161,6 +161,9 @@ class Scanner:
         # Ajustar por el offset del scoreboard (aproximadamente 1 bloque)
         adjusted_y = max(0, game_y - 1)
         
+        # Agregar +1 en Y para compensar el recorte
+        adjusted_y = adjusted_y + 1
+        
         return [game_x, adjusted_y]
     
     def _detect_eyes_pattern(self, white_matrix):
@@ -224,7 +227,10 @@ class Scanner:
             if frame is None:
                 return self.last_head_position, self.last_food_position
             
-            # Verificar dimensiones de la imagen
+            # Recortar solo el área de juego (excluyendo score y bordes)
+            frame = self._crop_game_area(frame)
+            
+            # Verificar dimensiones de la imagen recortada
             H, W = frame.shape[:2]
             expected_h = self.ROWS * 35  # 15 * 35 = 525
             expected_w = self.COLS * 35  # 17 * 35 = 595
@@ -316,6 +322,10 @@ class Scanner:
                     f.write(f"Puntaje actual: {current_score}\n")
                     f.write(f"Decisión de movimiento: {self.current_movement_decision.name if self.current_movement_decision else 'None'}\n")
             
+            # Generar imagen con grid si está habilitado el debug
+            if self.save_debug_images and head_position and food_position:
+                self._create_grid_image(original_filename, head_position, food_position)
+            
             # Actualizar estado
             self.last_head_position = head_position
             self.last_food_position = food_position
@@ -327,6 +337,67 @@ class Scanner:
             print(f"❌ Error en captura: {e}")
             return self.last_head_position, self.last_food_position
             
+    def _crop_game_area(self, frame):
+        """
+        Recorta la imagen para obtener solo el área de juego.
+        Proceso:
+        1. Redimensionar a 450x450 para estandarizar
+        2. Recorte manual basado en márgenes fijos:
+           - Quitar 18 píxeles de izquierda, derecha y abajo
+           - Quitar 64 píxeles de arriba
+        3. Resultado: área de juego de 17x15 recuadros
+        """
+        try:
+            original_h, original_w = frame.shape[:2]
+            print(f"📐 Imagen original: {original_w}x{original_h}")
+            
+            # Paso 1: Redimensionar a 450x450 para estandarizar
+            target_size = 450
+            resized_frame = cv2.resize(frame, (target_size, target_size))
+            print(f"🔄 Redimensionado a: {target_size}x{target_size}")
+            
+            # Paso 2: Recorte manual con márgenes fijos
+            # Márgenes fijos basados en 450x450:
+            margin_left = 18
+            margin_right = 18
+            margin_bottom = 18
+            margin_top = 64
+            
+            # Calcular el área de juego
+            game_x = margin_left
+            game_y = margin_top
+            game_w = target_size - margin_left - margin_right  # 450 - 18 - 18 = 414
+            game_h = target_size - margin_top - margin_bottom  # 450 - 64 - 18 = 368
+            
+            print(f"✂️  Márgenes fijos: izquierda={margin_left}, derecha={margin_right}, arriba={margin_top}, abajo={margin_bottom}")
+            print(f"✂️  Área de juego: {game_w}x{game_h} desde ({game_x}, {game_y})")
+            
+            # Recortar el área de juego
+            cropped_frame = resized_frame[game_y:game_y + game_h, game_x:game_x + game_w]
+            
+            print(f"✅ Área de juego procesada: {game_w}x{game_h} (solo recuadros verdes claros)")
+            
+            return cropped_frame
+            
+        except Exception as e:
+            print(f"❌ Error procesando área de juego: {e}")
+            return frame
+    
+    def _create_grid_image(self, original_path, head_position, food_position):
+        """Crea una imagen con cuadrícula de coordenadas superpuesta."""
+        try:
+            import sys
+            import os
+            sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+            from create_coordinate_grid import create_coordinate_grid
+            
+            # Generar imagen con grid
+            grid_path = create_coordinate_grid(original_path, head_position, food_position)
+            if grid_path:
+                print(f"🖼️  Grid generado: {grid_path}")
+        except Exception as e:
+            print(f"❌ Error generando grid: {e}")
+    
     def cleanup(self):
         """Limpia recursos."""
         # No hay recursos específicos que limpiar en esta implementación
