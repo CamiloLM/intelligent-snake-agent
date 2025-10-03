@@ -1,45 +1,15 @@
 import cv2
 import mss
+import sys
 import numpy as np
-import time
-import superReadScore
-import struct
-import os
-
-import pyautogui
-import random
 
 ROWS, COLS = 15, 17
-BLUE_THRESHOLD = 120
-
-SCREEN_CORNER_X = 691
-SCREEN_CORNER_Y = 346
-BOARD_SIZE_X = 595
-BOARD_SIZE_Y = 525
-
-screen_region = (SCREEN_CORNER_X, SCREEN_CORNER_Y, BOARD_SIZE_X, BOARD_SIZE_Y)
-
-TARGET_SIZE_X = BOARD_SIZE_X // COLS
-TARGET_SIZE_Y = BOARD_SIZE_Y // ROWS
-
-target_region = (691, 346,  TARGET_SIZE_X, TARGET_SIZE_Y)
-
-# In HSV: H = 0–179, S = 0–255, V = 0–255
-
-blue_color_ranges = {
-    "blue":  ([100, 50, 50], [130, 255, 255]),
-}
 
 red_color_ranges = {
     "red":   [([0, 70, 50], [10, 255, 255]), ([170, 70, 50], [179, 255, 255])],
 }
 
 def capture_region(region):
-    """
-    Capture a region of the screen and return it as a cv2-compatible image (NumPy array).
-
-    region: (left, top, width, height)
-    """
     left, top, width, height = region
     with mss.mss() as sct:
         monitor = {"left": left, "top": top, "width": width, "height": height}
@@ -49,18 +19,6 @@ def capture_region(region):
         return img_bgr
 
 def get_color_masks(img_bgr, color_ranges, masks_out=None):
-    """
-    Given a BGR image and a dictionary of color ranges, return a stacked mask array.
-
-    Args:
-        img_bgr: input image (H, W, 3) in BGR
-        color_ranges: dict {color_name: [ (lower, upper), ... ]}
-        masks_out: optional preallocated array (num_colors, H, W), dtype=uint8
-
-    Returns:
-        stacked masks of shape (num_colors, H, W), dtype=uint8
-        and a list of color names in the same order.
-    """
     hsv = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HSV)
     h, w = hsv.shape[:2]
     color_names = list(color_ranges.keys())
@@ -86,27 +44,41 @@ def get_color_masks(img_bgr, color_ranges, masks_out=None):
 
     return masks_out, color_names
 
-blue_mask = np.zeros((1, TARGET_SIZE_X, TARGET_SIZE_Y), dtype=np.uint8)
-frame = capture_region(target_region)
-get_color_masks(frame, blue_color_ranges, blue_mask)
+def ratio_blocks(masks_stack, block_size=(35, 35), grid_shape=(ROWS, COLS)):
+    block_h, block_w = block_size
+    rows, cols = grid_shape
+    num_colors, H, W = masks_stack.shape
 
-i = 1;
-targets = [(7,16), (14, 16), (14, 0), (0, 0), (0,16)]
-instructions = ["down", "left", "up", "right", "down"]
+    # Reshape: (colors, rows, block_h, cols, block_w)
+    reshaped = masks_stack.reshape(num_colors, rows, block_h, cols, block_w)
 
-target_region = (TARGET_SIZE_X * targets[0][1] + 691, TARGET_SIZE_Y * targets[0][0] + 346,  TARGET_SIZE_X, TARGET_SIZE_Y)
+    # Average over block pixels (axis 2,4) → ratios per block
+    results = reshaped.mean(axis=(2, 4))
 
-while(True):
+    return results
 
-    blue_mask = np.zeros((1, TARGET_SIZE_X, TARGET_SIZE_Y), dtype=np.uint8)
-    frame = capture_region(target_region)
-    get_color_masks(frame, blue_color_ranges, blue_mask)
+def capture_apple_coord(screen_region, block_size):
+    red_mask = np.zeros((1, screen_region[3], screen_region[2]), dtype=np.uint8)
+    frame = capture_region(screen_region)
+    get_color_masks(frame, red_color_ranges, red_mask)
+    red_cells_ratios = ratio_blocks(red_mask, block_size)
+    max_idx = np.unravel_index(np.argmax(red_cells_ratios), red_cells_ratios.shape)
+    return (max_idx[1], max_idx[2])
 
-    blue_mean = blue_mask.mean()
-#    print(blue_mean)
+def calibrate_region(screen_region):
+    frame = capture_region(screen_region)
+    cv2.imwrite("calibrate_board.png", frame)
 
-    if(blue_mean > BLUE_THRESHOLD):
-        pyautogui.press(instructions[i-1])
-        target_region = (TARGET_SIZE_X * targets[i][1] + 691, TARGET_SIZE_Y * targets[i][0] + 346,  TARGET_SIZE_X, TARGET_SIZE_Y)
-        print(target_region)
-        i = (i+1) % 5
+def main(screen_corner_x, screen_corner_y, board_size_x, board_size_y):
+    screen_region = (int(screen_corner_x), int(screen_corner_y), int(board_size_x), int(board_size_y))
+    block_size = ((screen_region[3]//ROWS, screen_region[2]//COLS))
+    calibrate_region(screen_region)
+    print("In the start position this should be (7, 12)")
+    print(capture_apple_coord(screen_region, block_size))
+
+if __name__ == '__main__':
+    if len(sys.argv) < 5:
+        print("Usage: python scanner.py screen_corner_x screen_corner_y board_size_x board_size_y")
+    else:
+        main(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4])
+
