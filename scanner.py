@@ -1,84 +1,164 @@
+from sys import argv
+from time import sleep
+from typing import List, Tuple
+
 import cv2
-import mss
-import sys
 import numpy as np
+from mss import mss
+
+from base import Pos
 
 ROWS, COLS = 15, 17
 
-red_color_ranges = {
-    "red":   [([0, 70, 50], [10, 255, 255]), ([170, 70, 50], [179, 255, 255])],
-}
+RED_COLOR_RANGES = [([0, 70, 50], [10, 255, 255]), ([170, 70, 50], [179, 255, 255])]
 
-def capture_region(region):
-    left, top, width, height = region
-    with mss.mss() as sct:
-        monitor = {"left": left, "top": top, "width": width, "height": height}
-        shot = sct.grab(monitor)  # raw BGRA image
-        img = np.array(shot)      # make it a NumPy array
-        img_bgr = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)  # convert to BGR
+
+class Scanner:
+    def __init__(self, region: Tuple[int, int, int, int]):
+        """Region es una tupla (x, y, width, height)"""
+        self._x = region[0]
+        self._y = region[1]
+        self._width = region[2]
+        self._height = region[3]
+        self._block_size = (self._width // COLS, self._height // ROWS)
+        self._sct = mss()  # Se guarda la instacia de mss
+
+    def capture_region(self) -> np.ndarray:
+        """
+        Hace una captura de pantalla según las regiones dadas en el constructor.
+        Regresa:
+        np.ndarray: Un arreglo de numpy con la captura en formato BGR.
+        """
+        monitor = {
+            "left": self._x,
+            "top": self._y,
+            "width": self._width,
+            "height": self._height,
+        }
+        shot = self._sct.grab(monitor)
+        img = np.array(shot)
+        img_bgr = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
         return img_bgr
 
-def get_color_masks(img_bgr, color_ranges, masks_out=None):
-    hsv = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HSV)
-    h, w = hsv.shape[:2]
-    color_names = list(color_ranges.keys())
-    num_colors = len(color_names)
+    def save_image(self) -> None:
+        """Guarda la imagen tomada por capture_region en el disco."""
+        frame = self.capture_region()
+        path = "calibrate_board.png"
+        cv2.imwrite(path, frame)
+        print(f"Imagen guardada en {path}")
 
-    if masks_out is None:
-        masks_out = np.zeros((num_colors, h, w), dtype=np.uint8)
+    def load_image(self, path: str) -> np.ndarray:
+        """
+        Carga una imagen desde el disco y la retorna.
+        Parámetros:
+        path (str): Path de la imagen a cargar.
+        Regresa:
+        np.ndarray: Imagen cargada en formato BGR.
+        """
+        img = cv2.imread(path, cv2.IMREAD_COLOR)
+        if img is None:
+            raise FileNotFoundError(f"No se pudo cargar la imagen en {path}")
+        return img
 
-    for i, color in enumerate(color_names):
-        ranges = color_ranges[color]
+    def get_color_mask(
+        self, img_bgr: np.ndarray, color_ranges: List[Tuple]
+    ) -> np.ndarray:
+        """
+        Dada una imagen en BGR regresa una mascara según los rangos del color
+        Parametros:
+        img_bgr (np.ndarray): Arreglo de numpy que representa una imagen en formato BGR
+        color_ranges (List(Tuple)): Una lista con los rangos de color en HSV
+        Regresa:
+        np.ndarray: Una mascara binaria con solo los puntos donde esta el color
+        """
+        # Se convierte la imagen de BGR a HSV por simplicidad
+        # TODO: Se podria poner la imagen directamente en HSV?
+        image_hsv = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2HSV)
+        img_w, img_h = image_hsv.shape[:2]
 
-        if isinstance(ranges[0][0], int):
-            # single range
-            lower, upper = ranges
-            cv2.inRange(hsv, np.array(lower), np.array(upper), dst=masks_out[i])
-        else:
-            # multiple ranges → OR them together
-            temp_mask = np.zeros((h, w), dtype=np.uint8)
-            for lower, upper in ranges:
-                mask = cv2.inRange(hsv, np.array(lower), np.array(upper))
-                cv2.bitwise_or(temp_mask, mask, dst=temp_mask)
-            masks_out[i][:] = temp_mask
+        # Se crea una mascara inicial de ceros para filtrar el color
+        color_mask = np.zeros((img_w, img_h), dtype=np.uint8)
 
-    return masks_out, color_names
+        # En HSV los colores pueden tener distintos rangos.
+        # Para crear una única mascara que detecte ese color hay que combinar los rangos
+        for color_range in color_ranges:
+            lower, upper = color_range
+            temp_mask = cv2.inRange(image_hsv, np.array(lower), np.array(upper))
 
-def ratio_blocks(masks_stack, block_size=(35, 35), grid_shape=(ROWS, COLS)):
-    block_h, block_w = block_size
-    rows, cols = grid_shape
-    num_colors, H, W = masks_stack.shape
+            # Combina la mascara acual con la temporal
+            color_mask = cv2.bitwise_or(color_mask, temp_mask)
 
-    # Reshape: (colors, rows, block_h, cols, block_w)
-    reshaped = masks_stack.reshape(num_colors, rows, block_h, cols, block_w)
+        return color_mask
 
-    # Average over block pixels (axis 2,4) → ratios per block
-    results = reshaped.mean(axis=(2, 4))
+    def ratio_blocks(self, mask: np.ndarray):
+        """
+        Calcula cual es la proporción del color en la mascara por cada bloque del tablero
+        Argumentos:
+        (np.ndarray): Mascara de un color en especifico
+        Regresa:
+        np.ndarray: Arreglo de tamaño (ROWS, COLS) con los promedios del color en cada bloque
+        """
+        block_w, block_h = self._block_size
+        mask_w, mask_h = mask.shape
 
-    return results
+        # Verificar que la imagen encaja exactemente con la grilla
+        assert mask_h == block_h * COLS, (
+            f"La altura no coincide {mask_h} != {block_h} * {COLS} == {block_h * COLS}"
+        )
+        assert mask_w == block_w * ROWS, (
+            f"La anchura no coincide {mask_w} != {block_w} * {ROWS} == {block_w * ROWS}"
+        )
 
-def capture_apple_coord(screen_region, block_size):
-    red_mask = np.zeros((1, screen_region[3], screen_region[2]), dtype=np.uint8)
-    frame = capture_region(screen_region)
-    get_color_masks(frame, red_color_ranges, red_mask)
-    red_cells_ratios = ratio_blocks(red_mask, block_size)
-    max_idx = np.unravel_index(np.argmax(red_cells_ratios), red_cells_ratios.shape)
-    return (max_idx[1], max_idx[2])
+        # Se subdivide la mascara en bloques de tamaño block_h y block_w
+        reshaped = mask.reshape(ROWS, block_h, COLS, block_w, copy=False)
 
-def calibrate_region(screen_region):
-    frame = capture_region(screen_region)
-    cv2.imwrite("calibrate_board.png", frame)
+        # Se saca el promedio cuanto color hay en el bloque
+        results = reshaped.mean(axis=(1, 3))
 
-def main(screen_corner_x, screen_corner_y, board_size_x, board_size_y):
-    screen_region = (int(screen_corner_x), int(screen_corner_y), int(board_size_x), int(board_size_y))
-    block_size = ((screen_region[3]//ROWS, screen_region[2]//COLS))
-    calibrate_region(screen_region)
-    print("In the start position this should be (7, 12)")
-    print(capture_apple_coord(screen_region, block_size))
+        return results
 
-if __name__ == '__main__':
-    if len(sys.argv) < 5:
-        print("Usage: python scanner.py screen_corner_x screen_corner_y board_size_x board_size_y")
+    def apple_coords(self, img_bgr: np.ndarray) -> Pos:
+        """
+        Calcula las coordenadas de la manzana en base a img_bgr
+        Parametros:
+        img_bgr (np.ndarray): Un arreglo de numpy que contiene la imagen en formato BGR
+        Regresa
+        Pos(x,y): Objeto tipo Pos con las coordenadas (x,y) de la manzana
+        """
+        mask = self.get_color_mask(img_bgr, RED_COLOR_RANGES)
+        red_cells = self.ratio_blocks(mask)
+        max_index = np.argmax(red_cells)  # Busca cual es el bloque más rojo de todos
+        loc = np.unravel_index(
+            max_index, red_cells.shape
+        )  # Localizacion en coordenadas 2D
+        return Pos(int(loc[1]), int(loc[0]))
+
+
+def run(screen_corner_x, screen_corner_y, board_size_x, board_size_y):
+    screen_region = (
+        int(screen_corner_x),
+        int(screen_corner_y),
+        int(board_size_x),
+        int(board_size_y),
+    )
+    scanner = Scanner(screen_region)
+    sleep(3)
+    img_bgr = scanner.capture_region()
+
+    # NOTE: Esta linea se puede descomentar para cargar una imagen directamente
+    # img_bgr = scanner.load_image("calibrate_board.png")
+
+    print(scanner.apple_coords(img_bgr))
+
+
+if __name__ == "__main__":
+    if len(argv) < 5:
+        # Hay que cambiar estas posiciones según su resolución
+        # TODO: Hacer un archivo .config con las posicioens en la pantalla de cada uno
+        x1, y1 = 411, 237
+        x2, y2 = 955, 717
+        board_width = x2 - x1
+        board_height = y2 - y1
+        run(x1, y1, board_width, board_height)
     else:
-        main(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4])
-
+        run(argv[1], argv[2], argv[3], argv[4])
