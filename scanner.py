@@ -171,6 +171,7 @@ def run(screen_corner_x, screen_corner_y, board_size_x, board_size_y):
         int(board_size_y),
     )
     scanner = Scanner(screen_region)
+
     # NOTE: Esta linea se puede descomentar para capturar una imagen
     # sleep(3)
     # img_bgr = scanner.capture_region()

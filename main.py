@@ -62,11 +62,6 @@ class Agent:
         # Show the image
         cv2.imshow("Image with Rectangle", img)
 
-        # Save the image to a new file (optional)
-        base_name, ext = os.path.splitext(file_name)
-        output_path = os.path.join("./analized/", base_name, "_mod", ext)
-        cv2.imwrite(output_path, img)
-
         # Wait for a key press to close the image window
         cv2.waitKey(0)
         cv2.destroyAllWindows()
