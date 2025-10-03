@@ -1,3 +1,4 @@
+import os
 from sys import argv
 from time import sleep
 from typing import List, Tuple
@@ -40,24 +41,52 @@ class Scanner:
         img_bgr = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
         return img_bgr
 
-    def save_image(self) -> None:
-        """Guarda la imagen tomada por capture_region en el disco."""
-        frame = self.capture_region()
-        path = "calibrate_board.png"
-        cv2.imwrite(path, frame)
-        print(f"Imagen guardada en {path}")
+    def save_image(self, file_name: str) -> None:
+        """
+        Guarda la imagen tomada por capture_region en la carpeta screenshots.
+        Parametros:
+        file_name (str): Nombre del archivo en screenshots
+        """
+        folder_name = "screenshots"
+        if not os.path.isdir(folder_name):
+            os.makedirs(folder_name)
+        file_path = os.path.join(folder_name, file_name)
 
-    def load_image(self, path: str) -> np.ndarray:
+        frame = self.capture_region()
+        cv2.imwrite(file_path, frame)
+        print(f"Imagen guardada en {file_path}")
+
+    def save_multiple_images(self, delay: int, num: int) -> None:
+        """
+        Guarda muchas imagenes del juego corriendo en la carpeta screenshots
+        Parametros:
+        delay (int): Cuantos segundos se demora en tomar la imagen
+        num (int): Cuantas imagenes se quieren tomar
+        """
+        # Clean folder
+        folder_name = "screenshots"
+        for file_name in os.listdir(folder_name):
+            file_path = os.path.join(folder_name, file_name)
+            os.remove(file_path)
+
+        n = 0
+        while n < num:
+            file_name = "frame" + str(n) + ".png"
+            self.save_image(file_name)
+            n += 1
+            sleep(delay)
+
+    def load_image(self, file_path: str) -> np.ndarray:
         """
         Carga una imagen desde el disco y la retorna.
         Parámetros:
-        path (str): Path de la imagen a cargar.
+        path (str): Path completo de la imagen a cargar.
         Regresa:
         np.ndarray: Imagen cargada en formato BGR.
         """
-        img = cv2.imread(path, cv2.IMREAD_COLOR)
+        img = cv2.imread(file_path, cv2.IMREAD_COLOR)
         if img is None:
-            raise FileNotFoundError(f"No se pudo cargar la imagen en {path}")
+            raise FileNotFoundError(f"No se pudo cargar la imagen en {file_path}")
         return img
 
     def get_color_mask(
@@ -142,12 +171,11 @@ def run(screen_corner_x, screen_corner_y, board_size_x, board_size_y):
         int(board_size_y),
     )
     scanner = Scanner(screen_region)
-    sleep(3)
-    img_bgr = scanner.capture_region()
+    # NOTE: Esta linea se puede descomentar para capturar una imagen
+    # sleep(3)
+    # img_bgr = scanner.capture_region()
 
-    # NOTE: Esta linea se puede descomentar para cargar una imagen directamente
-    # img_bgr = scanner.load_image("calibrate_board.png")
-
+    img_bgr = scanner.load_image("calibrate_board.png")
     print(scanner.apple_coords(img_bgr))
 
 
