@@ -1,3 +1,4 @@
+from base.direc import Direc
 from base.pos import Pos
 from solver.base import BaseSolver
 from solver.path import PathSolver
@@ -22,6 +23,7 @@ class GreedySolver(BaseSolver):
 
     5. La serpiente entra en modo supervivencia, elige la dirección segura que la aleje más de la comida.
     """
+
     def __init__(self, snake):
         super().__init__(snake)
         self._path_solver = PathSolver(snake)

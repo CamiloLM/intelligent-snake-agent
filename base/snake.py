@@ -1,74 +1,42 @@
-from random import randrange, choice
 from collections import deque
+from typing import List
 
 from base.direc import Direc
-from base.point import PointType
+from base.map import Map
+from base.point import Point, PointType
 from base.pos import Pos
 
 
 class Snake:
-    def __init__(self, game_map, init_direc=None, init_bodies=None, init_types=None):
-        """Inicializa el objeto Snake.
+    def __init__(
+        self,
+        game_map: Map,
+        init_direc: Direc,
+        init_bodies: List[Pos],
+        init_types: List[Point],
+    ):
+        """
         Args:
-            game_map (Map): El objeto Map donde se encuentra la serpiente.
-            init_direc (str): La dirección inicial de la serpiente ('UP', 'DOWN', 'LEFT', 'RIGHT').
-            init_bodies (list): Una lista de tuplas con las posiciones iniciales del cuerpo de la serpiente.
-            init_types (list): Una lista de tipos que representan las posiciones del cuerpo de la serpiente.
+        game_map (Map): Mapa donde se va a mover la serpiente.
+        init_direc (Direc): La dirección inicial de la serpiente.
+        init_bodies (List[Pos]): Una lista con las posiciones iniciales de la serpiente.
+        init_types (List[Point]): Una lista de tipos de cuerpo de la serpiente.
         """
         self._map = game_map
         self._init_direc = init_direc
         self._init_bodies = init_bodies
         self._init_types = init_types
-        self.reset(False)
+        self.setup()
 
-    def reset(self, reset_map=True):
-        """Reinicia la serpiente a su estado inicial en el juego. Si no se ha proporcionado la dirección inicial,
-        posicion del cuerpo o tipos de la serpiente, estos se asignarán de manera aleatoria.
-        Por defecto, también se reinicia el estado del mapa. Puede modificar el parámetro reset_map para evitarlo."""
-
-        # Si no se proporcionan los valores iniciales, se asignan aleatoriamente
-        randInit = False  # Indica si la función se inicio sin valores
-        rand_init = False
-        if self._init_direc is None:  # Randomly initialize
-            rand_init = True
-            head_row = randrange(2, self._map.num_rows - 2)
-            head_col = randrange(2, self._map.num_cols - 2)
-            head = Pos(head_row, head_col)
-
-            self._init_direc = choice(
-                [Direc.LEFT, Direc.UP, Direc.RIGHT, Direc.DOWN]
-            )
-            self._init_bodies = [head, head.adj(Direc.opposite(self._init_direc))]
-
-            self._init_types = []
-            if self._init_direc == Direc.LEFT:
-                self._init_types.append(PointType.HEAD_L)
-            elif self._init_direc == Direc.UP:
-                self._init_types.append(PointType.HEAD_U)
-            elif self._init_direc == Direc.RIGHT:
-                self._init_types.append(PointType.HEAD_R)
-            elif self._init_direc == Direc.DOWN:
-                self._init_types.append(PointType.HEAD_D)
-            if self._init_direc == Direc.LEFT or self._init_direc == Direc.RIGHT:
-                self._init_types.append(PointType.BODY_HOR)
-            elif self._init_direc == Direc.UP or self._init_direc == Direc.DOWN:
-                self._init_types.append(PointType.BODY_VER)
-
+    def setup(self):
         # Asignación de los valores iniciales
         self._dead = False
         self._direc = self._init_direc
         self._direc_next = Direc.NONE
         self._bodies = deque(self._init_bodies)
-
-        if reset_map:
-            self._map.reset()
+        self._map.reset()
         for i, pos in enumerate(self._init_bodies):
             self._map.point(pos).type = self._init_types[i]
-
-        # Si la función se inició sin valores, se limpian los valores iniciales para la próxima vez
-        if rand_init:
-            self._init_direc = self._init_bodies = self._init_types = None
-
 
     def copy(self):
         m_copy = self._map.copy()
@@ -158,7 +126,7 @@ class Snake:
     def _new_types(self):
         """Decide que tipo de celda debe tener cabeza y el resto cuerpo cuando la serpiente se mueve."""
         old_head_type, new_head_type = None, None
-        
+
         # Posiciones de la cabeza despues del movimiento
         if self._direc_next == Direc.LEFT:
             new_head_type = PointType.HEAD_L
@@ -168,7 +136,7 @@ class Snake:
             new_head_type = PointType.HEAD_R
         elif self._direc_next == Direc.DOWN:
             new_head_type = PointType.HEAD_D
-        
+
         # Poscion del cuerpo que era cabeza antes del movimiento
         if (self._direc == Direc.LEFT and self._direc_next == Direc.LEFT) or (
             self._direc == Direc.RIGHT and self._direc_next == Direc.RIGHT

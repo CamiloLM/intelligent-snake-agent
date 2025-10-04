@@ -8,6 +8,7 @@ from solver.base import BaseSolver
 
 class _TableCell:
     """Clase auxiliar para almacenar información durante la búsqueda de rutas."""
+
     def __init__(self):
         self.reset()
 
@@ -43,6 +44,10 @@ class PathSolver(BaseSolver):
 
     def shortest_path_to_food(self):
         return self.path_to(self.map.food, "shortest")
+        # if self.map.has_food():
+        #     return self.path_to(self.map.food, "shortest")
+        # else:
+        #     return self.longest_path_to_tail()
 
     def longest_path_to_tail(self):
         return self.path_to(self.snake.tail(), "longest")

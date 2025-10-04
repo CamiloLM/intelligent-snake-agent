@@ -156,11 +156,19 @@ class Scanner:
         """
         mask = self.get_color_mask(img_bgr, RED_COLOR_RANGES)
         red_cells = self.ratio_blocks(mask)
-        max_index = np.argmax(red_cells)  # Busca cual es el bloque más rojo de todos
-        loc = np.unravel_index(
-            max_index, red_cells.shape
-        )  # Localizacion en coordenadas 2D
-        return Pos(int(loc[1]), int(loc[0]))
+        max_index = np.argmax(red_cells)
+        location = np.unravel_index(max_index, red_cells.shape)
+
+        print(f"Index {max_index}")
+        # Caso 1: No detecta niguna manzana o lengua
+        if max_index <= 0:
+            return Pos(0, 0)
+        # Caso 2: Detecta solo la manzana
+        elif max_index >= 100:
+            return Pos(int(location[0]) + 1, int(location[1]) + 1)
+        # Caso 3: Detecta la lengua o la manzana
+        elif 0 < max_index < 100:
+            return Pos(16, 18)
 
 
 def run(screen_corner_x, screen_corner_y, board_size_x, board_size_y):
@@ -172,11 +180,7 @@ def run(screen_corner_x, screen_corner_y, board_size_x, board_size_y):
     )
     scanner = Scanner(screen_region)
 
-    # NOTE: Esta linea se puede descomentar para capturar una imagen
-    # sleep(3)
-    # img_bgr = scanner.capture_region()
-
-    img_bgr = scanner.load_image("calibrate_board.png")
+    img_bgr = scanner.load_image("./screenshots/frame13.png")
     print(scanner.apple_coords(img_bgr))
 
 
