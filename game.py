@@ -62,14 +62,14 @@ def main():
     game_map = Map(MAP_ROWS + 2, MAP_COLS + 2)
 
     if MAP_ROWS == 15 and MAP_COLS == 17:
-        init_bodies = [Pos(7, 4), Pos(7, 3), Pos(7, 2), Pos(7, 1)]
+        init_bodies = [Pos(8, 4), Pos(8, 3), Pos(8, 2), Pos(8, 1)]
         init_types = [PointType.HEAD_D] + [PointType.BODY_HOR] * (len(init_bodies) - 1)
 
         init_direc = Direc.RIGHT
 
         snake = Snake(game_map, init_direc, init_bodies, init_types)
 
-        game_map.create_food(Pos(7, 13))
+        game_map.create_food(Pos(8, 13))
     else:
         raise ValueError("Valor incorrecto de filas y columnas")
 

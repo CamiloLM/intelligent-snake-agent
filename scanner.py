@@ -1,5 +1,4 @@
 import os
-from sys import argv
 from time import sleep
 from typing import List, Tuple
 
@@ -9,7 +8,7 @@ from mss import mss
 
 from base import Pos
 
-ROWS = 15 
+ROWS = 15
 COLS = 17
 
 RED_COLOR_RANGES = [([0, 70, 50], [10, 255, 255]), ([170, 70, 50], [179, 255, 255])]
@@ -42,30 +41,26 @@ class Scanner:
         img_bgr = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
         return img_bgr
 
-    def save_image(self, file_name: str) -> None:
+    def save_image(self, file_path: str) -> None:
         """
-        Guarda la imagen tomada por capture_region en la carpeta screenshots.
+        Guarda la imagen tomada por capture_region en el path indicado.
         Parametros:
-        file_name (str): Nombre del archivo en screenshots
+        file_path (str): Ruta completa en donde guardar la imagen
         """
-        folder_name = "screenshots"
-        if not os.path.isdir(folder_name):
-            os.makedirs(folder_name)
-        file_path = os.path.join(folder_name, file_name)
-
         frame = self.capture_region()
         cv2.imwrite(file_path, frame)
         print(f"Imagen guardada en {file_path}")
 
     def save_multiple_images(self, delay: int, num: int) -> None:
         """
-        Guarda muchas imagenes del juego corriendo en la carpeta screenshots
+        Guarda muchas imagenes en la carpeta screenshots
         Parametros:
         delay (int): Cuantos segundos se demora en tomar la imagen
         num (int): Cuantas imagenes se quieren tomar
         """
-        # Clean folder
         folder_name = "screenshots"
+
+        # Elimina todos los archivos del directorio
         for file_name in os.listdir(folder_name):
             file_path = os.path.join(folder_name, file_name)
             os.remove(file_path)
@@ -73,7 +68,7 @@ class Scanner:
         n = 0
         while n < num:
             file_name = "frame" + str(n) + ".png"
-            self.save_image(file_name)
+            self.save_image(os.path.join(folder_name, file_name))
             n += 1
             sleep(delay)
 
@@ -160,36 +155,9 @@ class Scanner:
         max_index = np.argmax(red_cells)
         location = np.unravel_index(max_index, red_cells.shape)
 
-        print(f"Index: {max_index}")
         # No detecta niguna manzana o lengua
         if max_index <= 0:
             return Pos(0, 0)
         # Detecta manzana o lengua
         elif max_index > 0:
             return Pos(int(location[0]) + 1, int(location[1]) + 1)
-
-
-def run(screen_corner_x, screen_corner_y, board_size_x, board_size_y):
-    screen_region = (
-        int(screen_corner_x),
-        int(screen_corner_y),
-        int(board_size_x),
-        int(board_size_y),
-    )
-    scanner = Scanner(screen_region)
-
-    img_bgr = scanner.load_image("./screenshots/frame13.png")
-    print(scanner.apple_coords(img_bgr))
-
-
-if __name__ == "__main__":
-    if len(argv) < 5:
-        # Hay que cambiar estas posiciones según su resolución
-        # TODO: Hacer un archivo .config con las posicioens en la pantalla de cada uno
-        x1, y1 = 411, 237
-        x2, y2 = 955, 717
-        board_width = x2 - x1
-        board_height = y2 - y1
-        run(x1, y1, board_width, board_height)
-    else:
-        run(argv[1], argv[2], argv[3], argv[4])
