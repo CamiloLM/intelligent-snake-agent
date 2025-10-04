@@ -65,15 +65,13 @@ def main():
         init_bodies = [Pos(7, 4), Pos(7, 3), Pos(7, 2), Pos(7, 1)]
         init_types = [PointType.HEAD_D] + [PointType.BODY_HOR] * (len(init_bodies) - 1)
 
-        init_direc = Direc.RIGHT  # La dirección inicial no puede ser NONE
+        init_direc = Direc.RIGHT
 
         snake = Snake(game_map, init_direc, init_bodies, init_types)
 
         game_map.create_food(Pos(7, 13))
     else:
-        game_map = Map(MAP_ROWS + 2, MAP_COLS + 2)
-        snake = Snake(game_map)
-        game_map.create_rand_food()
+        raise ValueError("Valor incorrecto de filas y columnas")
 
     solver = GreedySolver(snake)
 

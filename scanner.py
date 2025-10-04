@@ -9,7 +9,8 @@ from mss import mss
 
 from base import Pos
 
-ROWS, COLS = 15, 17
+ROWS = 15 
+COLS = 17
 
 RED_COLOR_RANGES = [([0, 70, 50], [10, 255, 255]), ([170, 70, 50], [179, 255, 255])]
 
@@ -159,16 +160,13 @@ class Scanner:
         max_index = np.argmax(red_cells)
         location = np.unravel_index(max_index, red_cells.shape)
 
-        print(f"Index {max_index}")
-        # Caso 1: No detecta niguna manzana o lengua
+        print(f"Index: {max_index}")
+        # No detecta niguna manzana o lengua
         if max_index <= 0:
             return Pos(0, 0)
-        # Caso 2: Detecta solo la manzana
-        elif max_index >= 100:
+        # Detecta manzana o lengua
+        elif max_index > 0:
             return Pos(int(location[0]) + 1, int(location[1]) + 1)
-        # Caso 3: Detecta la lengua o la manzana
-        elif 0 < max_index < 100:
-            return Pos(16, 18)
 
 
 def run(screen_corner_x, screen_corner_y, board_size_x, board_size_y):

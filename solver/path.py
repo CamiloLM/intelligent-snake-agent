@@ -43,11 +43,11 @@ class PathSolver(BaseSolver):
         return self._table
 
     def shortest_path_to_food(self):
-        return self.path_to(self.map.food, "shortest")
-        # if self.map.has_food():
-        #     return self.path_to(self.map.food, "shortest")
-        # else:
-        #     return self.longest_path_to_tail()
+        # return self.path_to(self.map.food, "shortest")
+        if self.map.has_food():
+            return self.path_to(self.map.food, "shortest")
+        else:
+            return self.longest_path_to_tail()
 
     def longest_path_to_tail(self):
         return self.path_to(self.snake.tail(), "longest")
